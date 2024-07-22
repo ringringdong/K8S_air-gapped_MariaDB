@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mariadb-secret
+  namespace: test
+data:
+  password: UGFzc3dvcmQxIQ==  # Base64로 인코딩된 비밀번호
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mariadb
+  namespace: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mariadb
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: mariadb
+    spec:
+      containers:
+      - name: mariadb
+        image: 172.16.10.183:5000/k8s/mariadb:latest
+        ports:
+        - containerPort: 3306
+          name: mariadb
+        volumeMounts:
+        - name: mariadb-persistent-storage
+          mountPath: /var/lib/mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secret
+              key: password
+      volumes:
+      - name: mariadb-persistent-storage
+        persistentVolumeClaim:
+          claimName: nfs-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb
+  namespace: test
+spec:
+  ports:
+  - port: 3306
+  selector:
+    app: mariadb
